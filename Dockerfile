@@ -8,7 +8,6 @@ RUN sed -i 's|deb.debian.org|archive.debian.org|g; s|security.debian.org|archive
 COPY install_wkhtmltox.sh /build/install_wkhtmltox.sh
 RUN /build/install_wkhtmltox.sh 0.12.6-1 buster $TARGETARCH
 RUN rm -R /build
-ENV PYTHONPATH=${PYTHONPATH}:${PWD}
 RUN pip3 install poetry
 RUN mkdir /app
 COPY /src /app
