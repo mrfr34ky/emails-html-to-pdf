@@ -5,6 +5,5 @@ RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkh
 RUN apt-get install -y ./wkhtmltox_0.12.6-1.buster_amd64.deb
 RUN rm -rf /var/lib/apt/lists/* && rm wkhtmltox_0.12.6-1.buster_amd64.deb
 
-ENV PYTHONPATH=${PYTHONPATH}:${PWD}
 RUN pip3 install poetry
 RUN poetry config virtualenvs.create false
