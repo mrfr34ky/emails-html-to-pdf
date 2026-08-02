@@ -85,6 +85,7 @@ def process_mail(
     pdfkit_options=None,
     mail_msg_flag=None,
     filter_criteria=AND(seen=False),
+    subject_template=None,
 ):
     print("Starting mail processing run", flush=True)
     if printfailedmessage:
@@ -156,10 +157,24 @@ def process_mail(
                         print(f"\nBody/HTML Above")
                         raise e
 
+                template = subject_template if subject_template else "{subject}"
+                try:
+                    email_subject = template.format(
+                        subject=msg.subject,
+                        sender=msg.from_,
+                        date=msg.date_str,
+                    )
+                except (KeyError, IndexError) as e:
+                    print(
+                        f"\nInvalid EMAIL_SUBJECT_TEMPLATE placeholder ({e}), "
+                        f"falling back to original subject."
+                    )
+                    email_subject = msg.subject
+
                 send_mail(
                     mail_sender,
                     mail_destination,
-                    f"{msg.subject}",
+                    email_subject,
                     f"Converted PDF of email from {msg.from_} on {msg.date_str} wih topic {msg.subject}. Content below.\n\n\n\n{msg.text}",
                     files=[filename],
                     server=server_smtp,
@@ -169,7 +184,25 @@ def process_mail(
                     use_tls=smtp_tls,
                 )
 
-                if (
+                delete_after_process = (
+                    os.environ.get("DELETE_AFTER_PROCESS", "False").strip().lower()
+                    == "true"
+                )
+                if delete_after_process:
+                    # Move processed email to a user-defined folder (e.g. a
+                    # provider's Trash/Bin folder) rather than just flagging it.
+                    delete_folder = os.environ.get("DELETE_FOLDER")
+                    if not delete_folder:
+                        print(
+                            "\nDELETE_AFTER_PROCESS is enabled but DELETE_FOLDER "
+                            "is not set - skipping move, message left in place. "
+                            "Set DELETE_FOLDER to the exact folder name/path your "
+                            "mail provider uses (e.g. \"[Gmail]/Bin\", \"Trash\", "
+                            "\"Deleted Items\")."
+                        )
+                    else:
+                        mailbox.move(msg.uid, delete_folder)
+                elif (
                     mark_msg
                     and mail_msg_flag
                     and mail_msg_flag[0] in MailMessageFlags.all
@@ -248,26 +281,48 @@ if __name__ == "__main__":
 
     printfailedmessage = os.getenv("PRINT_FAILED_MSG", "False") == "True"
     pdfkit_options = os.environ.get("WKHTMLTOPDF_OPTIONS")
+    subject_template = os.environ.get("EMAIL_SUBJECT_TEMPLATE")
     mail_msg_flag = _get_mail_message_flag()
 
     filter_criteria = _get_imap_filter(mail_msg_flag)
 
-    print("Running emails-html-to-pdf")
+    # Support monitoring multiple IMAP folders, each with its own subject template:
+    #   IMAP_FOLDER_1=Folder1   EMAIL_SUBJECT_TEMPLATE_1=Template1
+    #   IMAP_FOLDER_2=Folder2   EMAIL_SUBJECT_TEMPLATE_2=Template2
+    # Falls back to the single IMAP_FOLDER/EMAIL_SUBJECT_TEMPLATE vars if no
+    # numbered folders are defined, for backwards compatibility.
+    folder_configs = []
+    i = 1
+    while True:
+        numbered_folder = os.environ.get(f"IMAP_FOLDER_{i}")
+        if not numbered_folder:
+            break
+        numbered_template = os.environ.get(f"EMAIL_SUBJECT_TEMPLATE_{i}")
+        folder_configs.append((numbered_folder, numbered_template))
+        i += 1
 
-    process_mail(
-        imap_url=server_imap,
-        imap_username=username,
-        imap_password=password,
-        imap_folder=folder,
-        mail_sender=sender,
-        mail_destination=destination,
-        server_smtp=server_smtp,
-        printfailedmessage=printfailedmessage,
-        pdfkit_options=pdfkit_options,
-        smtp_tls=smtp_tls,
-        smtp_port=smtp_port,
-        smtp_username=smtp_username,
-        smtp_password=smtp_password,
-        mail_msg_flag=mail_msg_flag,
-        filter_criteria=filter_criteria,
-    )
+    if not folder_configs:
+        folder_configs = [(folder, subject_template)]
+
+    print("Running emails-html-to-pdf")
+    print(f"Monitoring {len(folder_configs)} folder(s): {[f for f, _ in folder_configs]}")
+
+    for mail_folder, mail_subject_template in folder_configs:
+        process_mail(
+            imap_url=server_imap,
+            imap_username=username,
+            imap_password=password,
+            imap_folder=mail_folder,
+            mail_sender=sender,
+            mail_destination=destination,
+            server_smtp=server_smtp,
+            printfailedmessage=printfailedmessage,
+            pdfkit_options=pdfkit_options,
+            smtp_tls=smtp_tls,
+            smtp_port=smtp_port,
+            smtp_username=smtp_username,
+            subject_template=mail_subject_template,
+            smtp_password=smtp_password,
+            mail_msg_flag=mail_msg_flag,
+            filter_criteria=filter_criteria,
+        )

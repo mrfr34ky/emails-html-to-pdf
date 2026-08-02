@@ -1,3 +1,14 @@
+# UPDATE
+Added monitoring multiple folders (IMAP_FOLDER_N)
+Connected to those folders you can modify the subject of the email
+
+- (EMAIL_SUBJECT_TEMPLATE_N=[Archive {subject} — original email's subject
+                                     {sender} — original sender's address
+                                     {date} — original email's date string])
+
+Also tehre is an option to delete/move a process email:
+  - DELETE_AFTER_PROCESS=(true|false)
+  - DELETE_FOLDER=(folder name)
 # Email to PDF to email
 
 This script will check an imap folder for unread emails.

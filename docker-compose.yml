@@ -11,6 +11,12 @@ services:
       - IMAP_USERNAME=
       - IMAP_PASSWORD=
       - IMAP_FOLDER=
+      - IMAP_FOLDER_1=
+      - EMAIL_SUBJECT_TEMPLATE_1
+      - IMAP_FOLDER_2=
+      - EMAIL_SUBJECT_TEMPLATE_2
+      - SMTP_PORT=
+      - SMTP_TLS
       - SMTP_URL=
       - MAIL_SENDER=
       - MAIL_DESTINATION=
@@ -18,4 +24,6 @@ services:
       - PRINT_FAILED_MSG='true'
       - HOSTS=127.0.0.1 tracking.paypal.com
       - WKHTMLTOPDF_OPTIONS={"load-media-error-handling":"ignore"}
+      - DELETE_AFTER_PROCESS=
+      - DELETE_FOLDER=
     restart: always

@@ -2,21 +2,20 @@ FROM python:3.9-slim-buster
 
 ARG TARGETARCH
 
+RUN sed -i 's|deb.debian.org|archive.debian.org|g; s|security.debian.org|archive.debian.org|g' /etc/apt/sources.list \
+    && sed -i '/buster-updates/d' /etc/apt/sources.list
+
 COPY install_wkhtmltox.sh /build/install_wkhtmltox.sh
 RUN /build/install_wkhtmltox.sh 0.12.6-1 buster $TARGETARCH
 RUN rm -R /build
-
 ENV PYTHONPATH=${PYTHONPATH}:${PWD}
 RUN pip3 install poetry
-
 RUN mkdir /app
 COPY /src /app
 COPY pyproject.toml /app
 COPY runner.sh /app/runner.sh
 RUN chmod +x /app/runner.sh
 WORKDIR /app
-
 RUN poetry config virtualenvs.create false
-RUN poetry install --no-dev
-
+RUN poetry install --without dev --no-root
 ENTRYPOINT ["/app/runner.sh"]
